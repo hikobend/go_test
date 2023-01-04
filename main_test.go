@@ -1,69 +1,254 @@
 package main
 
 import (
-	"bytes"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
+	"errors"
+	"regexp"
 	"testing"
 
-	"github.com/go-playground/assert"
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
-func TestPingRouter(t *testing.T) {
-	router := router()
-	w := httptest.NewRecorder()
-	//c, _ := gin.CreateTestContext(w)
-	req, _ := http.NewRequest("GET", "/ping", nil)
-	router.ServeHTTP(w, req)
+func TestCreate(t *testing.T) {
 
-	assert.Equal(t, 200, w.Code)
-	// ...
-	assert.Equal(t, w.Body.String(), "{\"msg\":\"pong\"}")
+	t.Run(
+		"Createが成功するケース",
+		func(t *testing.T) {
+			// Arrange
+			todo := &ToDo{
+				Title: "testToDo",
+			}
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectExec(regexp.QuoteMeta("INSERT INTO todo(title) VALUES ( ? )")).
+				WithArgs(todo.Title).
+				WillReturnResult(sqlmock.NewResult(1, 1))
+
+			// Act
+			err = Create(db, todo)
+
+			// Assert
+			if err != nil {
+				t.Error(err.Error())
+			}
+		},
+	)
+
+	t.Run(
+		"Createが失敗するケース",
+		func(t *testing.T) {
+			// Arrange
+			todo := &ToDo{
+				Title: "testToDo",
+			}
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectExec(regexp.QuoteMeta("INSERT INTO todo(title) VALUES ( ? )")).
+				WithArgs(todo.Title).
+				WillReturnResult(sqlmock.NewErrorResult(errors.New("ERROR!!!"))).
+				WillReturnError(errors.New("INSERT FAILED!!!"))
+
+			// Act
+			err = Create(db, todo)
+
+			// Assert
+			if err == nil {
+				t.Error("An error should have occurred.")
+			}
+		},
+	)
+
 }
 
-func TestRouter(t *testing.T) {
-	tests := []struct {
-		name string
-		body string
-		code int
-		resp string
-	}{
-		{
-			name: "POST /ps with valid request body",
-			body: `{"name":"test"}`,
-			code: http.StatusOK,
-			resp: `{"msg":{"name":"test"}}`,
-		},
-		{
-			name: "POST /ps with invalid request body",
-			body: `{}`,
-			code: http.StatusBadRequest,
-			resp: `{"msg":"error"}`,
-		},
-	}
+func TestRead(t *testing.T) {
 
-	// create a test server
-	ts := httptest.NewServer(router())
-	defer ts.Close()
+	t.Run(
+		"Readが成功するケース",
+		func(t *testing.T) {
+			// Arrange
+			id := 1
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT id, title FROM todo WHERE id = ?")).
+				WithArgs(id).
+				WillReturnRows(sqlmock.NewRows([]string{"id", "title"}).AddRow(1, "testToDo"))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			res, err := http.Post(ts.URL+"/ps", "application/json", bytes.NewBuffer([]byte(tt.body)))
+			// Act
+			_, err = Read(db, id)
+
+			// Assert
 			if err != nil {
-				t.Errorf("Error making POST request: %v", err)
+				t.Error(err.Error())
 			}
-			if res.StatusCode != tt.code {
-				t.Errorf("Expected status %d; got %v", tt.code, res.StatusCode)
-			}
-			defer res.Body.Close()
-			body, err := ioutil.ReadAll(res.Body)
+		},
+	)
+
+	t.Run(
+		"Readが失敗するケース(QueryRowでエラー)",
+		func(t *testing.T) {
+			// Arrange
+			id := 1
+			db, mock, err := sqlmock.New()
 			if err != nil {
-				t.Errorf("Error reading response body: %v", err)
+				t.Error(err.Error())
 			}
-			if string(body) != tt.resp {
-				t.Errorf("Expected response body %q; got %q", tt.resp, string(body))
+			defer db.Close()
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT id, title FROM todo WHERE id = ?")).
+				WithArgs(id).
+				WillReturnError(errors.New("SELECT FAILED!!!"))
+
+			// Act
+			_, err = Read(db, id)
+
+			// Assert
+			if err == nil {
+				t.Error("An error should have occurred.")
 			}
-		})
-	}
+		},
+	)
+
+	t.Run(
+		"Readが失敗するケース(Scanでエラー)",
+		func(t *testing.T) {
+			// Arrange
+			id := 1
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT id, title FROM todo WHERE id = ?")).
+				WithArgs(id).
+				WillReturnRows(sqlmock.NewRows([]string{"hogehoge"}).AddRow("fugafuga"))
+
+			// Act
+			_, err = Read(db, id)
+
+			// Assert
+			if err == nil {
+				t.Error("An error should have occurred.")
+			}
+		},
+	)
+
+}
+
+func TestUpdate(t *testing.T) {
+
+	t.Run(
+		"Updateが成功するケース",
+		func(t *testing.T) {
+			// Arrange
+			todo := &ToDo{
+				Id:    1,
+				Title: "testToDo",
+			}
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectExec(regexp.QuoteMeta("UPDATE todo SET title = ? WHERE id = ?")).
+				WithArgs(todo.Title, todo.Id).
+				WillReturnResult(sqlmock.NewResult(1, 1))
+
+			// Act
+			err = Update(db, todo)
+
+			// Assert
+			if err != nil {
+				t.Error(err.Error())
+			}
+		},
+	)
+
+	t.Run(
+		"Updateが失敗するケース",
+		func(t *testing.T) {
+			// Arrange
+			todo := &ToDo{
+				Id:    1,
+				Title: "testToDo",
+			}
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectExec(regexp.QuoteMeta("UPDATE todo SET title = ? WHERE id = ?")).
+				WithArgs(todo.Title, todo.Id).
+				WillReturnResult(sqlmock.NewErrorResult(errors.New("ERROR!!!"))).
+				WillReturnError(errors.New("UPDATE FAILED!!!"))
+
+			// Act
+			err = Update(db, todo)
+
+			// Assert
+			if err == nil {
+				t.Error("An error should have occurred.")
+			}
+		},
+	)
+
+}
+
+func TestDelete(t *testing.T) {
+
+	t.Run(
+		"Deleteが成功するケース",
+		func(t *testing.T) {
+			// Arrange
+			id := 1
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectExec(regexp.QuoteMeta("DELETE FROM todo WHERE id = ?")).
+				WithArgs(id).
+				WillReturnResult(sqlmock.NewResult(1, 1))
+
+			// Act
+			err = Delete(db, id)
+
+			// Assert
+			if err != nil {
+				t.Error(err.Error())
+			}
+		},
+	)
+
+	t.Run(
+		"Deleteが失敗するケース",
+		func(t *testing.T) {
+			// Arrange
+			id := 1
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Error(err.Error())
+			}
+			defer db.Close()
+			mock.ExpectExec(regexp.QuoteMeta("DELETE FROM todo WHERE id = ?")).
+				WithArgs(id).
+				WillReturnResult(sqlmock.NewErrorResult(errors.New("ERROR!!!"))).
+				WillReturnError(errors.New("DELETE FAILED!!!"))
+
+			// Act
+			err = Delete(db, id)
+
+			// Assert
+			if err == nil {
+				t.Error("An error should have occurred.")
+			}
+		},
+	)
+
 }

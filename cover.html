@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">test/main.go (46.2%)</option>
+				<option value="file0">test/main.go (61.1%)</option>
 				
 				</select>
 			</div>
@@ -72,49 +72,56 @@
 		<pre class="file" id="file0" style="display: none">package main
 
 import (
+        "database/sql"
         "log"
-        "net/http"
 
-        "github.com/gin-gonic/gin"
+        _ "github.com/go-sql-driver/mysql"
 )
 
-type Movie struct {
-        ID          int    `json:"id"`
-        Title       string `json:"title"`
-        Description string `json:"description"`
+// model
+type ToDo struct {
+        Id   int
+        Name string
 }
 
-var movies []Movie
-
-func MoviesHandler(c *gin.Context) <span class="cov8" title="1">{
-        movies := []Movie{
-                {1, "movie1", "movie1"},
-                {2, "movie2", "movie2"},
-                {3, "movie3", "movie3"},
-        }
-        c.JSON(http.StatusOK, movies)
+func Create(db *sql.DB, t *ToDo) error <span class="cov8" title="1">{
+        _, err := db.Exec("INSERT INTO todo(name) VALUES ( ? )", t.Name)
+        return err
 }</span>
 
-func AddMovieHandler(c *gin.Context) <span class="cov8" title="1">{
-        var movie Movie
-        err := c.BindJSON(&amp;movie)
-        if err != nil </span><span class="cov0" title="0">{
-                c.JSON(http.StatusInternalServerError, gin.H{"msg": "error"})
+func Read(db *sql.DB, id int) (*ToDo, error) <span class="cov8" title="1">{
+        t := &amp;ToDo{}
+        err := db.QueryRow("SELECT id, name FROM todo WHERE id = ?", id).Scan(&amp;t.Id, &amp;t.Name)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
         }</span>
-        <span class="cov8" title="1">movies = append(movies, movie)</span>
+        <span class="cov8" title="1">return t, nil</span>
 }
 
-func SetupServer() *gin.Engine <span class="cov0" title="0">{
-        r := gin.Default()
-        r.GET("/movies", MoviesHandler)
-        r.POST("/addmovie", AddMovieHandler)
-        return r
+func Update(db *sql.DB, t *ToDo) error <span class="cov8" title="1">{
+        _, err := db.Exec("UPDATE todo SET name = ? WHERE id = ?", t.Name, t.Id)
+        return err
+}</span>
+
+func Delete(db *sql.DB, id int) error <span class="cov8" title="1">{
+        _, err := db.Exec("DELETE FROM todo WHERE id = ?", id)
+        return err
 }</span>
 
 func main() <span class="cov0" title="0">{
-        log.Println("Server Start...")
-        SetupServer().Run()
-}</span>
+        d, err := sql.Open("mysql", "root:password@tcp(localhost:3306)/mydb?charset=utf8mb4")
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal(err)
+        }</span>
+
+        <span class="cov0" title="0">todo := &amp;ToDo{Name: "read books"}
+        err = Create(d, todo)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal(err)
+        }</span>
+
+        // ...
+}
 </pre>
 		
 		</div>

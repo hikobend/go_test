@@ -1,34 +1,51 @@
 package main
 
 import (
-	"net/http"
+	"database/sql"
+	"log"
 
-	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-type User struct {
-	Name string `json:"name" binding:"required"`
+// model
+type ToDo struct {
+	Id    int    `json:"id"`
+	Title string `json:"title"`
 }
 
-func router() *gin.Engine {
-	r := gin.Default()
-
-	r.GET("/ping", func(c *gin.Context) {
-		// const StatusOK untyped int = 200
-		// gin.Hはmap[string]interface{}と同じ
-		c.JSON(http.StatusOK, gin.H{"msg": "pong"})
-	})
-
-	r.POST("/ps", func(c *gin.Context) {
-		var u User
-		if err := c.BindJSON(&u); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"msg": "error"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"msg": u})
-	})
-	return r
+func Create(db *sql.DB, t *ToDo) error {
+	_, err := db.Exec("INSERT INTO todo(title) VALUES ( ? )", t.Title)
+	return err
 }
+
+func Read(db *sql.DB, id int) (*ToDo, error) {
+	t := &ToDo{}
+	err := db.QueryRow("SELECT id, title FROM todo WHERE id = ?", id).Scan(&t.Id, &t.Title)
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func Update(db *sql.DB, t *ToDo) error {
+	_, err := db.Exec("UPDATE todo SET title = ? WHERE id = ?", t.Title, t.Id)
+	return err
+}
+
+func Delete(db *sql.DB, id int) error {
+	_, err := db.Exec("DELETE FROM todo WHERE id = ?", id)
+	return err
+}
+
 func main() {
-	router().Run()
+	d, err := sql.Open("mysql", "root:password@(localhost:3306)/local?parseTime=true")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	todo := &ToDo{Title: "read books"}
+	err = Create(d, todo)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
