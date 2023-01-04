@@ -1,4 +1,9 @@
 mode: set
-test/main.go:10.34,14.2 1 1
-test/main.go:16.32,20.2 3 1
-test/main.go:22.13,25.2 2 0
+test/main.go:13.27,16.38 2 1
+test/main.go:22.2,22.37 1 1
+test/main.go:30.2,30.10 1 1
+test/main.go:16.38,20.3 1 1
+test/main.go:22.37,24.40 2 1
+test/main.go:28.3,28.41 1 1
+test/main.go:24.40,27.4 2 1
+test/main.go:32.13,34.2 1 0
