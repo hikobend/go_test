@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">test/main.go (66.7%)</option>
+				<option value="file0">test/main.go (90.9%)</option>
 				
 				</select>
 			</div>
@@ -72,27 +72,36 @@
 		<pre class="file" id="file0" style="display: none">package main
 
 import (
-        "log"
         "net/http"
 
         "github.com/gin-gonic/gin"
 )
 
-func HomeHandler(c *gin.Context) <span class="cov8" title="1">{
-        c.JSON(http.StatusOK, gin.H{
-                "message": "hello world",
-        })
-}</span>
+type User struct {
+        Name string `json:"name" binding:"required"`
+}
 
-func SetupServer() *gin.Engine <span class="cov8" title="1">{
+func router() *gin.Engine <span class="cov8" title="1">{
         r := gin.Default()
-        r.GET("/", HomeHandler)
-        return r
-}</span>
 
+        r.GET("/ping", func(c *gin.Context) </span><span class="cov8" title="1">{
+                // const StatusOK untyped int = 200
+                // gin.Hはmap[string]interface{}と同じ
+                c.JSON(http.StatusOK, gin.H{"msg": "pong"})
+        }</span>)
+
+        <span class="cov8" title="1">r.POST("/ps", func(c *gin.Context) </span><span class="cov8" title="1">{
+                var u User
+                if err := c.BindJSON(&amp;u); err != nil </span><span class="cov8" title="1">{
+                        c.JSON(http.StatusUnauthorized, gin.H{"msg": "error"})
+                        return
+                }</span>
+                <span class="cov8" title="1">c.JSON(http.StatusOK, gin.H{"msg": u})</span>
+        })
+        <span class="cov8" title="1">return r</span>
+}
 func main() <span class="cov0" title="0">{
-        log.Println("Server Start...")
-        SetupServer().Run()
+        router().Run()
 }</span>
 </pre>
 		
