@@ -1,34 +1,25 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-type User struct {
-	Name string `json:"name" binding:"required"`
+func HomeHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"message": "hello world",
+	})
 }
 
-func router() *gin.Engine {
+func SetupServer() *gin.Engine {
 	r := gin.Default()
-
-	r.GET("/ping", func(c *gin.Context) {
-		// const StatusOK untyped int = 200
-		// gin.Hはmap[string]interface{}と同じ
-		c.JSON(http.StatusOK, gin.H{"msg": "pong"})
-	})
-
-	r.POST("/ps", func(c *gin.Context) {
-		var u User
-		if err := c.BindJSON(&u); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"msg": "error"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"msg": u})
-	})
+	r.GET("/", HomeHandler)
 	return r
 }
+
 func main() {
-	router().Run()
+	log.Println("Server Start...")
+	SetupServer().Run()
 }
